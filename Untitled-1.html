@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Angkatan Manajemen 2026 - Unkhair</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+    <!-- LOGIN OVERLAY -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full border border-slate-100 text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900">Portal Pengurus</h2>
+            <p class="text-sm text-slate-500 mt-1 mb-6">Database Manajemen 2026 Universitas Khairun</p>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <input type="password" id="passwordInput" placeholder="Masukkan Password Angkatan" 
+                        class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-center font-semibold">
+                    <p id="errorMessage" class="text-red-500 text-xs mt-2 hidden">Password salah! Silakan coba lagi.</p>
+                </div>
+                <button type="submit" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-blue-500/30">
+                    Masuk Database
+                </button>
+            </form>
+            <p class="text-xs text-slate-400 mt-4">Password bawaan: <span class="font-mono bg-slate-100 px-2 py-1 rounded text-slate-600">bjbjjbnkljihi</span></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTENT -->
+    <div id="appContent" class="hidden">
+        <!-- HEADER -->
+        <header class="bg-blue-700 text-white sticky top-0 z-30 shadow-md">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold">
+                        M26
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">Database Manajemen 2026</h1>
+                        <p class="text-xs text-blue-200">Universitas Khairun</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition flex items-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i> Keluar
+                </button>
+            </div>
+        </header>
+
+        <!-- SEARCH & CONTROLS -->
+        <main class="max-w-7xl mx-auto px-4 py-6">
+            <div class="bg-white rounded-2xl shadow-sm p-4 md:p-6 mb-6 border border-slate-200/60">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Search Input -->
+                    <div class="md:col-span-8 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" oninput="filterData()" 
+                            placeholder="Cari berdasarkan Nama atau NPM..." 
+                            class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+                    <!-- Filter Kelas -->
+                    <div class="md:col-span-4">
+                        <select id="classFilter" onchange="filterData()" 
+                            class="w-full py-3 px-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            <option value="">Semua Kelas</option>
+                            <option value="A">Kelas A</option>
+                            <option value="B">Kelas B</option>
+                            <option value="C">Kelas C</option>
+                            <option value="D">Kelas D</option>
+                            <option value="E">Kelas E</option>
+                            <option value="F">Kelas F</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stats summary -->
+                <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+                    <div>Menampilkan <span id="countDisplay" class="font-bold text-slate-800">0</span> Mahasiswa</div>
+                    <div class="flex gap-2">
+                        <span class="inline-flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded font-medium">
+                            <i class="fa-solid fa-[#000]"></i> Kontak Darurat Siap Fast-Dial
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATA CARDS CONTAINER -->
+            <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Data cards rendered via JS -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // RAW DATA EMBEDDED
+        const rawMahasiswa = [
+            {nama: "JUITA PUTRI MOTJOR", npm: "02042611067", kelas: "D", wa: "085299045248", tempatTinggal: "Kost", alamat: "Ngade", daruratNama: "Gita Yolanda", daruratHubungan: "Orang Tua", daruratHp: "+62 821-9504-9632"},
+            {nama: "Putri Dinanti", npm: "02042611230", kelas: "D", wa: "081356205028", tempatTinggal: "Kost", alamat: "Fitu", daruratNama: "LA ODE KASLAN", daruratHubungan: "Orang Tua", daruratHp: "+62 813-4733-7883"},
+            {nama: "Hanisa Trinurani", npm: "02042611072", kelas: "D", wa: "081355099619", tempatTinggal: "Kost", alamat: "Kalumata", daruratNama: "Yati Warman", daruratHubungan: "Orang Tua", daruratHp: "082112442773"},
+            {nama: "MUHAMMAD INDRA DODO", npm: "02042611154", kelas: "B", wa: "085342865114", tempatTinggal: "Kost", alamat: "RUSUN UNKHAIR", daruratNama: "081220599008", daruratHubungan: "Kakak", daruratHp: "085342865114"},
+            {nama: "Ayu Rilla Andini", npm: "02042611167", kelas: "B", wa: "082152610748", tempatTinggal: "Rumah Sendiri", alamat: "Ternate tengah, Kel. Stadion", daruratNama: "Muhammad Rajiv Khan Kautjil", daruratHubungan: "Kerabat", daruratHp: "0813-5585-5183"},
+            {nama: "Aura Arfani", npm: "02042611065", kelas: "D", wa: "0812-4382-0417", tempatTinggal: "Rumah Sendiri", alamat: "Tubo", daruratNama: "Bapak Munawar Ibrahim", daruratHubungan: "Orang Tua", daruratHp: "+62 822-9349-0267"},
+            {nama: "M Fahri Z Husain", npm: "02042611089", kelas: "B", wa: "081545467558", tempatTinggal: "Rumah Sendiri", alamat: "Kalumpang", daruratNama: "Suryanti Arsan", daruratHubungan: "Orang Tua", daruratHp: "082343035674"},
+            {nama: "SAKINA RAMLI", npm: "02042611083", kelas: "B", wa: "082344083627", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Sukma", daruratHubungan: "Kakak", daruratHp: "+62 823-4733-7393"},
+            {nama: "AGRITA LOBO", npm: "02042611073", kelas: "D", wa: "08138185109", tempatTinggal: "Kost", alamat: "Kelurahan Sasa, Ternate Selatan", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082197707925"},
+            {nama: "Cici Artika Nuang", npm: "02042611173", kelas: "E", wa: "082394602067", tempatTinggal: "Kost", alamat: "Kolongcucu gipsy", daruratNama: "Cucu Gipsy", daruratHubungan: "Kakak", daruratHp: "085241739936"},
+            {nama: "Aldi Juliando Ricardo Baay", npm: "02042611256", kelas: "F", wa: "085827619648", tempatTinggal: "Kost", alamat: "KAMPUNG MAKASSAR", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291914249"},
+            {nama: "Renaldi Yakseb", npm: "02042611009", kelas: "A", wa: "082190050837", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Renaldi Yakseb", daruratHubungan: "Orang Tua", daruratHp: "082190050837"},
+            {nama: "Abdillah Husen", npm: "02042611179", kelas: "E", wa: "081256156602", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan Ngade", daruratNama: "Qhibarul", daruratHubungan: "Kakak", daruratHp: "+62 851-4393-5127"},
+            {nama: "Regitah Nazilah", npm: "02042611110", kelas: "C", wa: "082136086540", tempatTinggal: "Kost", alamat: "Kelurahan Fitu", daruratNama: "Sandi (abangnya regitah)", daruratHubungan: "Kakak", daruratHp: "+62 857-9681-3179"},
+            {nama: "Naysila Nasrun", npm: "02042611015", kelas: "B", wa: "085255222920", tempatTinggal: "Rumah Sendiri", alamat: "Sasa", daruratNama: "Mama", daruratHubungan: "Orang Tua", daruratHp: "082137562865"},
+            {nama: "Nugrah Ramadan Y. B", npm: "02042611105", kelas: "B", wa: "082187647498", tempatTinggal: "Kost", alamat: "Ternate selatan, Sasa", daruratNama: "Yusuf", daruratHubungan: "Orang Tua", daruratHp: "+62 822-5721-4882"},
+            {nama: "Nurul Safitri", npm: "02042611177", kelas: "B", wa: "082151358325", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Talangame", daruratNama: "Nasir", daruratHubungan: "Orang Tua", daruratHp: "+62 821-4305-9328"},
+            {nama: "MUHAMMAD ARIEL", npm: "02042611234", kelas: "D", wa: "082271599266", tempatTinggal: "Ikut Kerabat", alamat: "Kel. Maliaro, Ternate Tengah", daruratNama: "Rika", daruratHubungan: "Kakak", daruratHp: "0821-9007-1024"},
+            {nama: "M. Ragil Amarullah", npm: "02042611248", kelas: "E", wa: "082291633945", tempatTinggal: "Kost", alamat: "Jl. Pertamina, Gambesi", daruratNama: "Aisyah Syukur", daruratHubungan: "Orang Tua", daruratHp: "+62 812-6354-0287"},
+            {nama: "ALLIFIA GAMARISYAH TAUDA", npm: "02042611096", kelas: "B", wa: "082155296047", tempatTinggal: "Rumah Sendiri", alamat: "Perumnas, Jln. Manggis 01", daruratNama: "Siti Umasangaji", daruratHubungan: "Orang Tua", daruratHp: "085210320071"},
+            {nama: "Dwi Yanti Iqbal", npm: "02042611093", kelas: "E", wa: "081342809054", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Nurhayati", daruratHubungan: "Kakak", daruratHp: "082196631130"},
+            {nama: "Najwa Putri Anugrah", npm: "02042611217", kelas: "C", wa: "082299288841", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082395258562"},
+            {nama: "Chaylla sandrina kunuku", npm: "02042611226", kelas: "D", wa: "081356849526", tempatTinggal: "Kost", alamat: "Kelurahan gambesi", daruratNama: "Junike roviani", daruratHubungan: "Orang Tua", daruratHp: "085241003357"},
+            {nama: "Salfa Malik", npm: "02042611211", kelas: "F", wa: "085398250776", tempatTinggal: "Kost", alamat: "Kelurahan gambesii", daruratNama: "Halima/Malik m zen", daruratHubungan: "Orang Tua", daruratHp: "082148673994"},
+            {nama: "Sindi Aulia s.jalal", npm: "02042611079", kelas: "E", wa: "082130388079", tempatTinggal: "Rumah Sendiri", alamat: "Ternate Maluku utara", daruratNama: "Marfua Ibrahim", daruratHubungan: "Orang Tua", daruratHp: "+62 853-9647-7881"},
+            {nama: "Andini", npm: "02042611148", kelas: "D", wa: "082195923769", tempatTinggal: "Rumah Sendiri", alamat: "Ngade Belakang", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085298125217"},
+            {nama: "Fhitry Yani Apling", npm: "02042611126", kelas: "C", wa: "082350940532", tempatTinggal: "Ikut Kerabat", alamat: "Fitu, Ternate Selatan", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082350940532"},
+            {nama: "Mayla Indriyani", npm: "02042611122", kelas: "C", wa: "082340552778", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Atri Chaniago", daruratHubungan: "Orang Tua", daruratHp: "082239406270"},
+            {nama: "PUTRI ZALZABILLAH", npm: "02042611175", kelas: "E", wa: "082396705461", tempatTinggal: "Rumah Sendiri", alamat: "KEL GAMBESI RT06 RW05", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082396705461"},
+            {nama: "Indah Bosoa", npm: "02042611165", kelas: "B", wa: "085242215045", tempatTinggal: "Kost", alamat: "Tubo", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082277772650"},
+            {nama: "Muhammad Zulfadry", npm: "02042611265", kelas: "F", wa: "082193659977", tempatTinggal: "Rumah Sendiri", alamat: "Soa", daruratNama: "Mama", daruratHubungan: "Orang Tua", daruratHp: "0822-7111-4408"},
+            {nama: "Attayar fialjanna hamisi", npm: "02042611125", kelas: "F", wa: "08134161512", tempatTinggal: "Rumah Sendiri", alamat: "Jl. raya fitu Rt001 Rw001", daruratNama: "tayar", daruratHubungan: "Orang Tua", daruratHp: "08134161512"},
+            {nama: "Naysila Samsuddin", npm: "02042611258", kelas: "F", wa: "+6282189458432", tempatTinggal: "Kost", alamat: "Kel.Sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "+6282189458432"},
+            {nama: "Rasya Aditiya Wardana", npm: "02042611091", kelas: "B", wa: "082151995531", tempatTinggal: "Rumah Sendiri", alamat: "Ubo-Ubo", daruratNama: "Ibu", daruratHubungan: "Orang Tua", daruratHp: "0813-4411-1485"},
+            {nama: "M.FAHRI IRWAN", npm: "02042611164", kelas: "B", wa: "085266393947", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan gambesi", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085266393947"},
+            {nama: "ASTUTI SUKUR", npm: "02042611155", kelas: "B", wa: "081241936363", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "SUKUR GALITAN", daruratHubungan: "Orang Tua", daruratHp: "0812-4057-5118"},
+            {nama: "mawar inayah lina", npm: "02042611163", kelas: "E", wa: "085397672041", tempatTinggal: "Kost", alamat: "kelurahan mangga 2", daruratNama: "papa", daruratHubungan: "Orang Tua", daruratHp: "0821-3147-9178"},
+            {nama: "fisya kamila", npm: "02042611138", kelas: "D", wa: "082374633502", tempatTinggal: "Rumah Sendiri", alamat: "KEL.TOBOLEU", daruratNama: "fitria bachmid", daruratHubungan: "Orang Tua", daruratHp: "081244081068"},
+            {nama: "khayla putri m noh", npm: "02042611099", kelas: "B", wa: "081244361523", tempatTinggal: "Rumah Sendiri", alamat: "ternate", daruratNama: "Adik / Kerabat", daruratHubungan: "Kerabat", daruratHp: "081244361523"},
+            {nama: "NURAINY.HI UMAR", npm: "02042611016", kelas: "B", wa: "082195936617", tempatTinggal: "Rumah Sendiri", alamat: "TERNATE", daruratNama: "Munawar adam", daruratHubungan: "Orang Tua", daruratHp: "082241103839"},
+            {nama: "GETSIA KOLOLY", npm: "02043611058", kelas: "C", wa: "082357905632", tempatTinggal: "Kost", alamat: "GAMBESI", daruratNama: "MEFI AMUMANG", daruratHubungan: "Kakak", daruratHp: "082299287397"},
+            {nama: "iren sopia krikhoff", npm: "02042611077", kelas: "E", wa: "082261509309", tempatTinggal: "Kost", alamat: "JL.Stikip.Kel sasa RT-08/Rw-03", daruratNama: "Winnya O krikhoff", daruratHubungan: "Kakak", daruratHp: "0822-4624-4475"},
+            {nama: "KAYLA ZULAIKHA ALWENI", npm: "02042611140", kelas: "D", wa: "082347902321", tempatTinggal: "Rumah Sendiri", alamat: "kelurahan toboleu", daruratNama: "indri asti haruna", daruratHubungan: "Orang Tua", daruratHp: "082299369314"},
+            {nama: "Raudatul Zannah", npm: "02042611014", kelas: "B", wa: "08984820931", tempatTinggal: "Kost", alamat: "kelurahan ubo-ubo", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "08984820931"},
+            {nama: "Pratama Christian Singal", npm: "02042611247", kelas: "E", wa: "082296996908", tempatTinggal: "Rumah Sendiri", alamat: "Takoma", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082296996908"},
+            {nama: "Irawati Ahmad", npm: "02042611200", kelas: "E", wa: "085343933850", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082233188169"},
+            {nama: "WIDYAWATI", npm: "02042611172", kelas: "B", wa: "082343016360", tempatTinggal: "Rumah Sendiri", alamat: "Tubo", daruratNama: "Nurhayat kofia", daruratHubungan: "Orang Tua", daruratHp: "082194344683"},
+            {nama: "Dava arsenal yasin", npm: "02042611241", kelas: "E", wa: "08135425299", tempatTinggal: "Rumah Sendiri", alamat: "Ternate Selatan", daruratNama: "Dino mawardi", daruratHubungan: "Orang Tua", daruratHp: "+62 813-4151-4547"},
+            {nama: "Windhy febriyanti ismail", npm: "02042611004", kelas: "A", wa: "081380486266", tempatTinggal: "Kost", alamat: "Kalumata", daruratNama: "Irwan ismail", daruratHubungan: "Orang Tua", daruratHp: "081318698025"},
+            {nama: "Nursinta Norau", npm: "02042611238", kelas: "E", wa: "085394912470", tempatTinggal: "Kost", alamat: "kepulauan sula", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085394912470"},
+            {nama: "Muhammad Ghatan", npm: "02042611178", kelas: "E", wa: "081344429039", tempatTinggal: "Rumah Sendiri", alamat: "Jl. Transmigrasi Kelurahan Maliaro", daruratNama: "Nurlaila", daruratHubungan: "Orang Tua", daruratHp: "081241688374"},
+            {nama: "Chelsi Maulana May", npm: "02042611243", kelas: "E", wa: "085223955003", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085214053818"},
+            {nama: "Marta sari ngoku", npm: "02042611008", kelas: "B", wa: "081251168304", tempatTinggal: "Kost", alamat: "Kelurahan sasa", daruratNama: "Kartini Makahekung", daruratHubungan: "Orang Tua", daruratHp: "0822-1154-4198"},
+            {nama: "fina ahmad", npm: "02042611076", kelas: "E", wa: "081320897659", tempatTinggal: "Rumah Sendiri", alamat: "Kel Foramadiahi", daruratNama: "Ibu", daruratHubungan: "Orang Tua", daruratHp: "081320897659"},
+            {nama: "Anri rajilun", npm: "02042611194", kelas: "F", wa: "082152550059", tempatTinggal: "Kost", alamat: "Kelurahan gambesi", daruratNama: "Bahri", daruratHubungan: "Orang Tua", daruratHp: "082152550059"},
+            {nama: "Nur Haliza", npm: "02042611103", kelas: "B", wa: "081350710195", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan Makassar Timur", daruratNama: "JUMRIAH H. MAHMUD", daruratHubungan: "Orang Tua", daruratHp: "082291665408"},
+            {nama: "Cindy C. Siloinyanan", npm: "02042611250", kelas: "E", wa: "082151972062", tempatTinggal: "Kost", alamat: "Akehuda", daruratNama: "Kerabat", daruratHubungan: "Kerabat", daruratHp: "082151972062"},
+            {nama: "Aura M. Rani", npm: "02042611137", kelas: "D", wa: "082347222313", tempatTinggal: "Rumah Sendiri", alamat: "Kel. Maliaro", daruratNama: "Safina M Rani", daruratHubungan: "Kakak", daruratHp: "081277777387"},
+            {nama: "ASHYA ANNISA N. DUWILA", npm: "02042611104", kelas: "B", wa: "082151245773", tempatTinggal: "Rumah Sendiri", alamat: "Salero, Jln. daniel bohang", daruratNama: "Nadira Albaar", daruratHubungan: "Orang Tua", daruratHp: "081355676464"},
+            {nama: "Nurul Alifia Putri", npm: "02042611106", kelas: "B", wa: "082249041481", tempatTinggal: "Rumah Sendiri", alamat: "Soa Konora", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "0822-9790-0951"},
+            {nama: "Amelia Suhardin", npm: "02042611158", kelas: "B", wa: "085233517652", tempatTinggal: "Kost", alamat: "Kelurahan Sasa", daruratNama: "Niken", daruratHubungan: "Wali", daruratHp: "082187122678"},
+            {nama: "Wahyuni mokhtar", npm: "02042611180", kelas: "B", wa: "+62 822-7697-0883", tempatTinggal: "Kost", alamat: "fitu", daruratNama: "iqra", daruratHubungan: "Kakak", daruratHp: "+62 821-8966-3084"},
+            {nama: "Mutia M.Ahmad", npm: "02042611263", kelas: "F", wa: "082136295538", tempatTinggal: "Kost", alamat: "Kel.Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082136295538"},
+            {nama: "Asanul Fauzan Basri", npm: "02042611233", kelas: "F", wa: "082317994615", tempatTinggal: "Rumah Sendiri", alamat: "jati perumnas", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082317994615"},
+            {nama: "M. Rizki Fahmi Putra", npm: "02042611262", kelas: "F", wa: "082354788153", tempatTinggal: "Rumah Sendiri", alamat: "kelurahan tubo", daruratNama: "Suwarny", daruratHubungan: "Orang Tua", daruratHp: "085398143439"},
+            {nama: "MUHAMMAD DANDA PRATAMA", npm: "02042611153", kelas: "B", wa: "082195630522", tempatTinggal: "Rumah Sendiri", alamat: "Tanah tinggi", daruratNama: "TRIWIASIH", daruratHubungan: "Orang Tua", daruratHp: "082279221940"},
+            {nama: "Syahjun Saputra", npm: "02042611240", kelas: "E", wa: "0821-8702-8108", tempatTinggal: "Rumah Sendiri", alamat: "Ternate", daruratNama: "Asma banyal", daruratHubungan: "Orang Tua", daruratHp: "0823-4638-1368"},
+            {nama: "Sri Mulyani", npm: "02042611254", kelas: "F", wa: "082342919668", tempatTinggal: "Kost", alamat: "Gambesi samping SMA 3", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081356519016"},
+            {nama: "Sastra Nurlily", npm: "02042611192", kelas: "E", wa: "082361168779", tempatTinggal: "Rumah Sendiri", alamat: "Salero", daruratNama: "Arsad Nurlily", daruratHubungan: "Orang Tua", daruratHp: "085242222869"},
+            {nama: "Muhammad Rhezal s. Hamid", npm: "02042611151", kelas: "B", wa: "085372601593", tempatTinggal: "Ikut Kerabat", alamat: "Bastiong karance", daruratNama: "hamida lulang", daruratHubungan: "Orang Tua", daruratHp: "0853-3134-4732"},
+            {nama: "Syaifullah Hi. Laguna", npm: "02042611171", kelas: "E", wa: "081356915618", tempatTinggal: "Kost", alamat: "Gambesi, Ternate Selatan", daruratNama: "Raudhatul Khamamah", daruratHubungan: "Kakak", daruratHp: "+62 821-9845-6760"},
+            {nama: "Thariq wahidin m. Nasir", npm: "02042611053", kelas: "A", wa: "082284143628", tempatTinggal: "Ikut Kerabat", alamat: "gambesi", daruratNama: "Ka lan", daruratHubungan: "Kakak", daruratHp: "085242121773"},
+            {nama: "Nofita Yanti Ridwan", npm: "02042611237", kelas: "E", wa: "082296763834", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "papa", daruratHubungan: "Orang Tua", daruratHp: "082213100288"},
+            {nama: "Naylan M.H. Safiuddin", npm: "02042611112", kelas: "C", wa: "08132549756", tempatTinggal: "Kost", alamat: "Ubo ubo", daruratNama: "Rina Maselia La polisi", daruratHubungan: "Orang Tua", daruratHp: "08132549756"},
+            {nama: "SEPTIA RUSTAM", npm: "02042611162", kelas: "E", wa: "081364327097", tempatTinggal: "Kost", alamat: "Gambesi, Kec.Ternate Sel.", daruratNama: "Rustam idris", daruratHubungan: "Orang Tua", daruratHp: "085366475576"},
+            {nama: "MUH. FADLAN TURKIE", npm: "02042611017", kelas: "A", wa: "082248485580", tempatTinggal: "Rumah Sendiri", alamat: "Jl.Dahlia, Kel. Kayu Merah", daruratNama: "MARWIA KARBI", daruratHubungan: "Orang Tua", daruratHp: "0852-4012-5009"},
+            {nama: "Nurul Aulia Rusmit", npm: "02042611206", kelas: "F", wa: "082343012456", tempatTinggal: "Rumah Sendiri", alamat: "Koloncucu Gipsi", daruratNama: "aida", daruratHubungan: "Orang Tua", daruratHp: "082346361449"},
+            {nama: "Munira iskarima muhammad", npm: "02042611266", kelas: "F", wa: "082195322989", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082195322989"},
+            {nama: "Desmawati Muzakir", npm: "02042611128", kelas: "F", wa: "082271250140", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Desmawati p papa", daruratHubungan: "Orang Tua", daruratHp: "+62 813-2222-6169"},
+            {nama: "Rila Deswita Latuconsina", npm: "02042611018", kelas: "A", wa: "085299983582", tempatTinggal: "Rumah Sendiri", alamat: "Jl. Jan Kelurahan Tabona", daruratNama: "Farida Salampessy", daruratHubungan: "Orang Tua", daruratHp: "085342159166"},
+            {nama: "Rafiana Rusli", npm: "02042611251", kelas: "E", wa: "089618155123", tempatTinggal: "Rumah Sendiri", alamat: "ngade", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082192611111"},
+            {nama: "Haikal Muhammad", npm: "02042611161", kelas: "E", wa: "081243565984", tempatTinggal: "Kost", alamat: "Kel gambesi", daruratNama: "Risal", daruratHubungan: "Kerabat", daruratHp: "085396210207"},
+            {nama: "Al Mugni Azahra Azis", npm: "02042611129", kelas: "F", wa: "081351275396", tempatTinggal: "Rumah Sendiri", alamat: "Jl Yasim Gamsungi Makassar timur", daruratNama: "Eddy azis", daruratHubungan: "Orang Tua", daruratHp: "081241825558"},
+            {nama: "M. RIFKI TAN", npm: "02042611168", kelas: "E", wa: "089527605854", tempatTinggal: "Rumah Sendiri", alamat: "Jl. Semangka, Kasturian", daruratNama: "YULIANA", daruratHubungan: "Orang Tua", daruratHp: "081340727706"},
+            {nama: "Rahmadina Habib", npm: "02042611007", kelas: "B", wa: "085363737589", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Rahmat", daruratHubungan: "Kakak", daruratHp: "085316761116"},
+            {nama: "CARISSYA PUTRI KAYLA CONORAS", npm: "02042611062", kelas: "A", wa: "+62 853-9486-6805", tempatTinggal: "Rumah Sendiri", alamat: "kel.kayu merah lapangan", daruratNama: "SITTI AISYAH", daruratHubungan: "Orang Tua", daruratHp: "+62 853-9450-5240"},
+            {nama: "Nurafifah Toduho", npm: "02042611204", kelas: "F", wa: "081356903568", tempatTinggal: "Kost", alamat: "sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "085240297741"},
+            {nama: "Nezma Khairani", npm: "02042611242", kelas: "E", wa: "082387161483", tempatTinggal: "Rumah Sendiri", alamat: "Kel.Kalumata", daruratNama: "Zainudin M. Arsyad", daruratHubungan: "Orang Tua", daruratHp: "085216206434"},
+            {nama: "Inka Saskya Lubis", npm: "02042611081", kelas: "E", wa: "085398252354", tempatTinggal: "Kost", alamat: "Jl. KH. Ahmad Dahlan, Sasa", daruratNama: "dahlia", daruratHubungan: "Kakak", daruratHp: "+62 823-1613-1671"},
+            {nama: "Alya Anata Muhaimin", npm: "02042611136", kelas: "D", wa: "082152930997", tempatTinggal: "Ikut Kerabat", alamat: "Kelurahan Jati", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081331531312"},
+            {nama: "Putri Rezki Amalia", npm: "02042611229", kelas: "D", wa: "081358257499", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Karance", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082189431944"},
+            {nama: "Bagas Amiruddin Dano Taib", npm: "02042611253", kelas: "F", wa: "081342495722", tempatTinggal: "Rumah Sendiri", alamat: "TABONA JL JAN", daruratNama: "anita ratna yulianto", daruratHubungan: "Orang Tua", daruratHp: "+62 821-5115-2005"},
+            {nama: "Hana Mustika Sari", npm: "02042611120", kelas: "F", wa: "081356954038", tempatTinggal: "Kost", alamat: "Kalumata", daruratNama: "Ayah", daruratHubungan: "Orang Tua", daruratHp: "+62 821-9385-6701"},
+            {nama: "Nurmala M.Tosofu", npm: "02042611205", kelas: "F", wa: "082195632310", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082195632310"},
+            {nama: "Friska Bella Rahmadhani", npm: "02042611115", kelas: "C", wa: "08134998734", tempatTinggal: "Kost", alamat: "Ngade,Ternate Selatan", daruratNama: "Ruswati", daruratHubungan: "Orang Tua", daruratHp: "085757483712"},
+            {nama: "Hismawati Muhammad Lahia", npm: "02042611092", kelas: "B", wa: "082214500629", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "Muhammad Lahia", daruratHubungan: "Orang Tua", daruratHp: "081241386369"},
+            {nama: "Nada", npm: "02042611202", kelas: "E", wa: "082190313806", tempatTinggal: "Kost", alamat: "sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082214781838"},
+            {nama: "Sulistia Rahmawati Usman", npm: "02042611159", kelas: "B", wa: "081241546295", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Gafar", daruratHubungan: "Orang Tua", daruratHp: "0813-5643-3790"},
+            {nama: "M gufran kiat", npm: "02042611118", kelas: "C", wa: "082291554356", tempatTinggal: "Kost", alamat: "Sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291554356"},
+            {nama: "Fransiska Fatem", npm: "02042611184", kelas: "C", wa: "082148997671", tempatTinggal: "Kontrakan", alamat: "Kelurahan Sasa", daruratNama: "Stevanus Yance Fatem", daruratHubungan: "Kakak", daruratHp: "+62 812-4871-8891"},
+            {nama: "Zarra D Ahmad", npm: "02042611223", kelas: "C", wa: "081237820317", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082130092636"},
+            {nama: "Rafli Minangkabau", npm: "02042611026", kelas: "A", wa: "08138173944", tempatTinggal: "Asrama", alamat: "Kel.Gambesi", daruratNama: "Nurnaila Adam", daruratHubungan: "Orang Tua", daruratHp: "081356928369"},
+            {nama: "Cosmas Momao", npm: "02042611183", kelas: "C", wa: "082345541266", tempatTinggal: "Kost", alamat: "Kelurahan jambula", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082345541266"},
+            {nama: "NAFISYAH PUTRI IEDUL", npm: "02042611046", kelas: "A", wa: "085298456986", tempatTinggal: "Kost", alamat: "Kel Fitu", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "085256864959"},
+            {nama: "RANDI SAPUTRA DJALIL", npm: "02042611208", kelas: "F", wa: "08218753783", tempatTinggal: "Kost", alamat: "Kelurahan fitu", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "08218753783"},
+            {nama: "putri viriyal khalisa", npm: "02042611111", kelas: "C", wa: "085240370624", tempatTinggal: "Rumah Sendiri", alamat: "ternate", daruratNama: "nayu s djama", daruratHubungan: "Orang Tua", daruratHp: "+62 852-5229-5176"},
+            {nama: "Indah Nuraini Hi. Abbas", npm: "02042611239", kelas: "C", wa: "085340173523", tempatTinggal: "Rumah Sendiri", alamat: "Ternate", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "+62 812 80275550"},
+            {nama: "KEISYAH ASMIRANDAH", npm: "02042611051", kelas: "C", wa: "081374272013", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Heriyanti", daruratHubungan: "Orang Tua", daruratHp: "081340456393"},
+            {nama: "Rasti Lumondo", npm: "02042611209", kelas: "F", wa: "085394923241", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Rahmi / Kakak", daruratHubungan: "Orang Tua", daruratHp: "0823-5023-3579"},
+            {nama: "Bella Agustin", npm: "02042611196", kelas: "E", wa: "085783686021", tempatTinggal: "Kost", alamat: "Jalan Cempaka, Maliaro", daruratNama: "Gita Ramadhani", daruratHubungan: "Kakak", daruratHp: "0821-9101-3004"},
+            {nama: "NELA KRIMADI", npm: "02042611189", kelas: "C", wa: "081228037277", tempatTinggal: "Kost", alamat: "Kelurahan Sasa", daruratNama: "Kerabat", daruratHubungan: "Kerabat", daruratHp: "081312015249"},
+            {nama: "muhammad khathier alghifary", npm: "02042611268", kelas: "F", wa: "085339005685", tempatTinggal: "Rumah Sendiri", alamat: "santiong", daruratNama: "Wali", daruratHubungan: "Wali", daruratHp: "085339005685"},
+            {nama: "DEA MUTIA KELU", npm: "02042611052", kelas: "C", wa: "082297147325", tempatTinggal: "Kost", alamat: "kelurahan gambesi", daruratNama: "HARIYANTO KELU", daruratHubungan: "Orang Tua", daruratHp: "085255608968"},
+            {nama: "Fitria Izfatul Humairah Lating", npm: "02042611116", kelas: "C", wa: "081256163134", tempatTinggal: "Rumah Sendiri", alamat: "Kel.Tabona", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082136139339"},
+            {nama: "ALFIRA AZZAHRA", npm: "02042611101", kelas: "B", wa: "085297467743", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Riawani", daruratHubungan: "Orang Tua", daruratHp: "085243818617"},
+            {nama: "Yohanis Petrus Frabuku", npm: "02042611185", kelas: "C", wa: "081247154661", tempatTinggal: "Kost", alamat: "Kelurahan Jambula", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "081247154661"},
+            {nama: "Julia Ningsi D. Rence", npm: "02042611124", kelas: "C", wa: "085849481175", tempatTinggal: "Rumah Sendiri", alamat: "Tanah Tinggi", daruratNama: "Dewi Alimuddin", daruratHubungan: "Orang Tua", daruratHp: "081340369061"},
+            {nama: "ZULFANDI B. SALEH", npm: "02042611214", kelas: "F", wa: "0822-3246-2369", tempatTinggal: "Kost", alamat: "Kel.Mareku, Tidore", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "0822-9966-5784"},
+            {nama: "RESAYANTI AFIANA PANIGFAT", npm: "02042611023", kelas: "B", wa: "082291065548", tempatTinggal: "Kost", alamat: "Gambesii", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291065548"},
+            {nama: "Marla.Usia", npm: "02042611025", kelas: "C", wa: "085182507062", tempatTinggal: "Kost", alamat: "kelurahan sasa", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085182507062"},
+            {nama: "Nazla Safira Miyahi", npm: "02042611109", kelas: "C", wa: "085394060748", tempatTinggal: "Kost", alamat: "Sasa", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085394060748"},
+            {nama: "Salsabila Hi Thaib", npm: "02042611117", kelas: "C", wa: "085343613984", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "085343613984"},
+            {nama: "Nur Khairah Alliyah Ibkar", npm: "02042611203", kelas: "F", wa: "085285416862", tempatTinggal: "Rumah Sendiri", alamat: "Ngade", daruratNama: "Ayah", daruratHubungan: "Orang Tua", daruratHp: "082349202439"},
+            {nama: "Muhammad Revan", npm: "02042611108", kelas: "C", wa: "085219813717", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Talangame", daruratNama: "Evan", daruratHubungan: "Orang Tua", daruratHp: "085299975777"},
+            {nama: "ANGLIN D GUGUTU", npm: "02042611191", kelas: "C", wa: "082245066116", tempatTinggal: "Kost", alamat: "Kelurahan sasa", daruratNama: "Papa", daruratHubungan: "Orang Tua", daruratHp: "085397290940"},
+            {nama: "Sintia djaelan", npm: "02042611080", kelas: "E", wa: "085217137674", tempatTinggal: "Kost", alamat: "Kosan rekayasa gambesi", daruratNama: "Sarlina", daruratHubungan: "Kakak", daruratHp: "082274598720"},
+            {nama: "Umaira H. Radjab", npm: "02042611130", kelas: "F", wa: "082298637152", tempatTinggal: "Rumah Sendiri", alamat: "jambula", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082298637152"},
+            {nama: "Nazwa m. Ahmad", npm: "02042611249", kelas: "E", wa: "082192796926", tempatTinggal: "Kost", alamat: "Kalumata, griya Napoleon", daruratNama: "Pak irwan", daruratHubungan: "Orang Tua", daruratHp: "082298972102"},
+            {nama: "Mohammad Raehan Towidjojo", npm: "02042611160", kelas: "D", wa: "082189590139", tempatTinggal: "Ikut Kerabat", alamat: "Kampung Makassar Barat", daruratNama: "Ibu asna", daruratHubungan: "Orang Tua", daruratHp: "082191251110"},
+            {nama: "NAZWA AULIA D RADJAB", npm: "02042611252", kelas: "F", wa: "082393584487", tempatTinggal: "Rumah Sendiri", alamat: "santiong", daruratNama: "sukarsi igrisa", daruratHubungan: "Orang Tua", daruratHp: "082312102928"},
+            {nama: "JADDI TAIB", npm: "02042611038", kelas: "A", wa: "082197411735", tempatTinggal: "Kost", alamat: "Kelurahan gambesi", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082197411735"},
+            {nama: "ASRUL SAFIUDIN", npm: "02042611195", kelas: "F", wa: "082299768528", tempatTinggal: "Kost", alamat: "gambesi", daruratNama: "rifki", daruratHubungan: "Kakak", daruratHp: "085242035752"},
+            {nama: "Qhiswa bachmid", npm: "02042611169", kelas: "F", wa: "082367915166", tempatTinggal: "Kost", alamat: "Sasa", daruratNama: "Kerabat", daruratHubungan: "Kerabat", daruratHp: "082367915166"},
+            {nama: "Shinta Anggraeni Sukri", npm: "02042611050", kelas: "C", wa: "081350707940", tempatTinggal: "Rumah Sendiri", alamat: "Ternate", daruratNama: "papa", daruratHubungan: "Orang Tua", daruratHp: "081230873112"},
+            {nama: "NIDHA FAIZAH LIAMBANA", npm: "02042611088", kelas: "B", wa: "082297861271", tempatTinggal: "Kost", alamat: "KELURAHAN GAMBESI", daruratNama: "Hindung Sillia", daruratHubungan: "Orang Tua", daruratHp: "081244267905"},
+            {nama: "Muhammad Romli", npm: "02042611188", kelas: "C", wa: "085218978505", tempatTinggal: "Ikut Kerabat", alamat: "Kalumata", daruratNama: "Wali", daruratHubungan: "Wali", daruratHp: "081241140078"},
+            {nama: "WAODE SASMITA", npm: "02042611060", kelas: "D", wa: "082321274787", tempatTinggal: "Kost", alamat: "Kelurahan fitu", daruratNama: "LA ODE RUSLIN", daruratHubungan: "Orang Tua", daruratHp: "+62 822-9088-4065"},
+            {nama: "Sulistiani Samuel", npm: "02042611135", kelas: "D", wa: "82348289205", tempatTinggal: "Kost", alamat: "Durian", daruratNama: "Irwan", daruratHubungan: "Orang Tua", daruratHp: "081242741110"},
+            {nama: "Dina ramadhani", npm: "02042611074", kelas: "D", wa: "082261395216", tempatTinggal: "Rumah Sendiri", alamat: "JL.julung", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082261395216"},
+            {nama: "M.Fajar Andika Ode", npm: "02042611134", kelas: "D", wa: "085395519797", tempatTinggal: "Ikut Kerabat", alamat: "Akehuda", daruratNama: "Rostini Ode bolose", daruratHubungan: "Wali", daruratHp: "085395519797"},
+            {nama: "NADIA EIRUMKUY", npm: "02042611186", kelas: "C", wa: "0821-9172-3755", tempatTinggal: "Kontrakan", alamat: "Sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "0821-9172-3755"},
+            {nama: "andi puang maharani A. sukriah", npm: "02042611039", kelas: "A", wa: "081219956689", tempatTinggal: "Kost", alamat: "kelurahan sasa", daruratNama: "hawa tuahuns", daruratHubungan: "Orang Tua", daruratHp: "8131358398"},
+            {nama: "fatimah azzahra assagaf", npm: "02042611143", kelas: "D", wa: "081342516151", tempatTinggal: "Kost", alamat: "Jambula", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081342516151"},
+            {nama: "Indri Faradilah Hi. Sirajuddin", npm: "02042611127", kelas: "C", wa: "082195676058", tempatTinggal: "Rumah Sendiri", alamat: "Fitu", daruratNama: "Mama", daruratHubungan: "Orang Tua", daruratHp: "+62 851-3717-4942"},
+            {nama: "Septiana R Saleh", npm: "02042611049", kelas: "C", wa: "081243994489", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan Kalumpang", daruratNama: "ibu sitnawati", daruratHubungan: "Orang Tua", daruratHp: "0821-9000-1994"},
+            {nama: "Nurul Mutia M", npm: "02042611228", kelas: "D", wa: "085372205395", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Karance", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082337893374"},
+            {nama: "Alfahira Putri Laha", npm: "02042611100", kelas: "B", wa: "082291698042", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Karance", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291698042"},
+            {nama: "Nadia Maisinta", npm: "02042611102", kelas: "B", wa: "082374541557", tempatTinggal: "Kost", alamat: "Kel.Gambesi", daruratNama: "Wa Mila / Mama", daruratHubungan: "Orang Tua", daruratHp: "082393895407"},
+            {nama: "Nursina M. Nur", npm: "02042611020", kelas: "A", wa: "082290403843", tempatTinggal: "Asrama", alamat: "Kelurahan Gambesi", daruratNama: "Janiarsi Adam", daruratHubungan: "Kakak", daruratHp: "081290451829"},
+            {nama: "Rafli Irdatullah", npm: "02042611087", kelas: "B", wa: "085256204256", tempatTinggal: "Rumah Sendiri", alamat: "Kota Ternate", daruratNama: "Nuraini Taher", daruratHubungan: "Orang Tua", daruratHp: "081343581521"},
+            {nama: "Sekar K Labanong", npm: "02042611149", kelas: "D", wa: "085793677485", tempatTinggal: "Kost", alamat: "kelurahan jati", daruratNama: "Sutari K Labanong", daruratHubungan: "Kakak", daruratHp: "082258448853"},
+            {nama: "M.ANDILI JASRI", npm: "02042611094", kelas: "A", wa: "082357801802", tempatTinggal: "Asrama", alamat: "jambula", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082357801802"},
+            {nama: "nurul wardani ansar", npm: "02042611005", kelas: "B", wa: "085342231851", tempatTinggal: "Rumah Sendiri", alamat: "ubo-ubo", daruratNama: "mira ardiana", daruratHubungan: "Orang Tua", daruratHp: "0822-5903-4981"},
+            {nama: "Lismawati Ade", npm: "02042611144", kelas: "D", wa: "082189033789", tempatTinggal: "Kost", alamat: "kelurahan fitu", daruratNama: "Hadija jabir", daruratHubungan: "Orang Tua", daruratHp: "+62 852-1082-0247"},
+            {nama: "MOH.NAZRIEL ALDJINANU", npm: "02042611176", kelas: "C", wa: "082291215969", tempatTinggal: "Rumah Sendiri", alamat: "Maliaro", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291215969"},
+            {nama: "Faradila Tjan", npm: "02042611082", kelas: "E", wa: "085255221730", tempatTinggal: "Rumah Sendiri", alamat: "Ternate", daruratNama: "Ibu Sani", daruratHubungan: "Adik", daruratHp: "085342875984"},
+            {nama: "Dhea Valentci Pumadada", npm: "02042611216", kelas: "C", wa: "082241317098", tempatTinggal: "Kost", alamat: "gambesi", daruratNama: "Derci Lette", daruratHubungan: "Orang Tua", daruratHp: "+62 821-2208-8411"},
+            {nama: "Lista La Sibaa", npm: "02042611201", kelas: "E", wa: "082299696715", tempatTinggal: "Kost", alamat: "Jalan kebun cengkeh gambesi", daruratNama: "Muma", daruratHubungan: "Kerabat", daruratHp: "082297731765"},
+            {nama: "nur rizqillah khumairah meran", npm: "02042611119", kelas: "F", wa: "082348429534", tempatTinggal: "Kost", alamat: "kelurahan jati perumnas", daruratNama: "ngatining", daruratHubungan: "Orang Tua", daruratHp: "082320082970"},
+            {nama: "Dwi prizisky J awad", npm: "02042611255", kelas: "F", wa: "082127785790", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan tabam", daruratNama: "Kakak Dwi", daruratHubungan: "Kakak", daruratHp: "+62 813-4039-6940"},
+            {nama: "pinkan rusdi", npm: "02042611207", kelas: "F", wa: "082187089416", tempatTinggal: "Rumah Sendiri", alamat: "dufa dufa", daruratNama: "hariyani", daruratHubungan: "Orang Tua", daruratHp: "081224446074"},
+            {nama: "Rika pratiwi", npm: "02042611024", kelas: "C", wa: "082199367644", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082199367644"},
+            {nama: "Hardianty muhdi", npm: "02042611259", kelas: "F", wa: "082313624448", tempatTinggal: "Kost", alamat: "Kelurahan sasa", daruratNama: "Asrul Sadoki", daruratHubungan: "Orang Tua", daruratHp: "082191518691"},
+            {nama: "Achmed sarajeva lutfi", npm: "02042611085", kelas: "B", wa: "082394737115", tempatTinggal: "Rumah Sendiri", alamat: "Tanah tinggi", daruratNama: "Nurul afianty", daruratHubungan: "Kakak", daruratHp: "0821-8886-2607"},
+            {nama: "Agus Mardika Harun", npm: "02042611227", kelas: "D", wa: "081346517302", tempatTinggal: "Rumah Sendiri", alamat: "Kel.Maliaro", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081340308545"},
+            {nama: "Humairah Baharuddin", npm: "02042611225", kelas: "D", wa: "081243584943", tempatTinggal: "Rumah Sendiri", alamat: "Jl AN kamarudin", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "081243584943"},
+            {nama: "Aurellia Syahbani Soleman", npm: "02042611156", kelas: "B", wa: "081340240981", tempatTinggal: "Rumah Sendiri", alamat: "Tanah Raja", daruratNama: "Rossita Efendi", daruratHubungan: "Orang Tua", daruratHp: "+62 813-5653-9565"},
+            {nama: "Syila Revina Nuralifia", npm: "02042611270", kelas: "F", wa: "081354809007", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan Salero", daruratNama: "Yuli", daruratHubungan: "Orang Tua", daruratHp: "085280406970"},
+            {nama: "Asti Kumala Panjo", npm: "02042611245", kelas: "E", wa: "082295483442", tempatTinggal: "Ikut Kerabat", alamat: "Tanah Tinggi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082295483442"},
+            {nama: "Mardiyanti Canda Lestari Sudirman", npm: "02042611215", kelas: "C", wa: "082188062993", tempatTinggal: "Kontrakan", alamat: "jati metro ternate selatan", daruratNama: "ibu yani liem", daruratHubungan: "Orang Tua", daruratHp: "081315437582"},
+            {nama: "Jefika Sela", npm: "02042611022", kelas: "B", wa: "085395886872", tempatTinggal: "Kost", alamat: "Kel. Gambesi", daruratNama: "Adrik Sela", daruratHubungan: "Orang Tua", daruratHp: "082148106108"},
+            {nama: "Intan Nurhayati", npm: "02042611002", kelas: "A", wa: "081245376776", tempatTinggal: "Rumah Sendiri", alamat: "Kel. Jambula", daruratNama: "Haisun", daruratHubungan: "Orang Tua", daruratHp: "0821-8721-1385"},
+            {nama: "Rahyuni S. Nurtaba", npm: "02042611057", kelas: "A", wa: "081292364622", tempatTinggal: "Kost", alamat: "jambula", daruratNama: "Safar Nurtaba", daruratHubungan: "Orang Tua", daruratHp: "082199120818"},
+            {nama: "Alfa Rudin Samiu", npm: "02042611043", kelas: "A", wa: "082296857218", tempatTinggal: "Kost", alamat: "Kelurahan Sasa", daruratNama: "Rina La Page", daruratHubungan: "Orang Tua", daruratHp: "+62 813-3057-9422"},
+            {nama: "Fitriyanti Taufik", npm: "02042611027", kelas: "A", wa: "085353408589", tempatTinggal: "Kost", alamat: "gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "085353408589"},
+            {nama: "Weni Fatmawati", npm: "02042611033", kelas: "A", wa: "082187066633", tempatTinggal: "Ikut Kerabat", alamat: "Marikurubu", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082187066633"},
+            {nama: "sheren selsiliana", npm: "02042611010", kelas: "A", wa: "082193664022", tempatTinggal: "Rumah Sendiri", alamat: "LINGK JATI KECIL", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082193663022"},
+            {nama: "Dhini Septia D Daeng Roa", npm: "02042611232", kelas: "D", wa: "082293676212", tempatTinggal: "Kost", alamat: "Kalumata", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082293676212"},
+            {nama: "Risa Hastanti Usia", npm: "02042611003", kelas: "A", wa: "082271657465", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082271657465"},
+            {nama: "KHORONI FITROTUL MUBAROKAH", npm: "02042611019", kelas: "A", wa: "087716929502", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Jamilatul Munawaroh", daruratHubungan: "Orang Tua", daruratHp: "0821-1360-5152"},
+            {nama: "rizky dwi k. hakim", npm: "02042611031", kelas: "A", wa: "085316783726", tempatTinggal: "Kost", alamat: "sasa", daruratNama: "aprillia", daruratHubungan: "Kakak", daruratHp: "082281998372"},
+            {nama: "tri widiyana", npm: "02042611021", kelas: "A", wa: "082236437263", tempatTinggal: "Kost", alamat: "sasa", daruratNama: "Adik", daruratHubungan: "Adik", daruratHp: "082236437263"},
+            {nama: "Sulastri Udin", npm: "02042611036", kelas: "A", wa: "085188359050", tempatTinggal: "Rumah Sendiri", alamat: "Sasa RT 009 RW 004", daruratNama: "Siska", daruratHubungan: "Kakak", daruratHp: "081341057644"},
+            {nama: "Najla Sazanah Hamzah", npm: "02042611114", kelas: "C", wa: "081342461995", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Mama (Santy)", daruratHubungan: "Orang Tua", daruratHp: "081340007437"},
+            {nama: "YULIYANTI MASDAR", npm: "02042611035", kelas: "A", wa: "+62 813-2762-8354", tempatTinggal: "Kost", alamat: "KELURAHAN SASA", daruratNama: "Jusria Anhar", daruratHubungan: "Kakak", daruratHp: "+62 813-4068-399"},
+            {nama: "NURJIHAN RUSTAM", npm: "02042611029", kelas: "A", wa: "082396495621", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082396495621"},
+            {nama: "NAZWA INDAH PRATIWI", npm: "02042611042", kelas: "A", wa: "081244986178", tempatTinggal: "Rumah Sendiri", alamat: "Tabona", daruratNama: "Rizky amalia", daruratHubungan: "Kakak", daruratHp: "082293376603"},
+            {nama: "IZZA RAMADHANI M", npm: "02042611001", kelas: "A", wa: "082156741854", tempatTinggal: "Rumah Sendiri", alamat: "Bastiong Karance", daruratNama: "kaka", daruratHubungan: "Kakak", daruratHp: "082337893374"},
+            {nama: "Afdal Abdullah", npm: "02042611061", kelas: "A", wa: "085395061227", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Norma Abdullah", daruratHubungan: "Kakak", daruratHp: "082236259908"},
+            {nama: "Nurul Intan Chadijah Marhani", npm: "02042611034", kelas: "A", wa: "082291745702", tempatTinggal: "Rumah Sendiri", alamat: "Kel. Bastiong Talangame", daruratNama: "Nurlaita Hi Abdullah", daruratHubungan: "Orang Tua", daruratHp: "081319538353"},
+            {nama: "Nayla Priyanka Sahbudin", npm: "02042611028", kelas: "A", wa: "081242755791", tempatTinggal: "Rumah Sendiri", alamat: "Kelurahan Tubo", daruratNama: "nay", daruratHubungan: "Orang Tua", daruratHp: "085399117751"},
+            {nama: "Amelia Jono", npm: "02042611011", kelas: "A", wa: "085247666886", tempatTinggal: "Kost", alamat: "Kelurahan Gambesi", daruratNama: "Naura Azzahra", daruratHubungan: "Kerabat", daruratHp: "+62 852-1705-1214"},
+            {nama: "Jumiati", npm: "02042611056", kelas: "A", wa: "081343201457", tempatTinggal: "Kost", alamat: "Salero", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081343201447"},
+            {nama: "Muhammad Ikher", npm: "02042611121", kelas: "C", wa: "081354890315", tempatTinggal: "Rumah Sendiri", alamat: "Lelong, Makassar Timur", daruratNama: "Jarvis", daruratHubungan: "Orang Tua", daruratHp: "0813-5691-7774"},
+            {nama: "Asniken", npm: "02042611236", kelas: "D", wa: "081376228759", tempatTinggal: "Kost", alamat: "Kelurahan gambesi", daruratNama: "Melda Yanti", daruratHubungan: "Kakak", daruratHp: "085231207990"},
+            {nama: "sukmawati", npm: "02042611048", kelas: "A", wa: "082291237612", tempatTinggal: "Kost", alamat: "Kota baru", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082291237612"},
+            {nama: "INDAH MULYANINGSIH", npm: "02042611040", kelas: "A", wa: "0813-4386-5820", tempatTinggal: "Rumah Sendiri", alamat: "Kalumata", daruratNama: "Mursiati", daruratHubungan: "Orang Tua", daruratHp: "0852-8740-4642"},
+            {nama: "NURTIA ANWAR", npm: "02042611045", kelas: "A", wa: "085298179167", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082152931810"},
+            {nama: "Tiyara Tarim", npm: "02042611257", kelas: "F", wa: "082363970690", tempatTinggal: "Rumah Sendiri", alamat: "tubo", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "082290513096"},
+            {nama: "Farhan mutasim", npm: "020242611198", kelas: "F", wa: "082227636158", tempatTinggal: "Kost", alamat: "Sasa", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "082195638841"},
+            {nama: "Fadlurrahman f.darise", npm: "02042611139", kelas: "D", wa: "0852-4555-0412", tempatTinggal: "Rumah Sendiri", alamat: "Ngade", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "0823-7963-1544"},
+            {nama: "Nazwa Nurul Shania Nassim", npm: "02042611182", kelas: "B", wa: "082225464832", tempatTinggal: "Rumah Sendiri", alamat: "Jambula", daruratNama: "Muhammad Nassim", daruratHubungan: "Orang Tua", daruratHp: "+62 821-2333-0970"},
+            {nama: "Fitriatun Hasanah", npm: "02042611199", kelas: "E", wa: "082310189150", tempatTinggal: "Kost", alamat: "Fitu Ternate Selatan", daruratNama: "Adik", daruratHubungan: "Adik", daruratHp: "082310189150"},
+            {nama: "Agustina", npm: "02042611193", kelas: "E", wa: "082211403984", tempatTinggal: "Kost", alamat: "Jambula", daruratNama: "Asrudin", daruratHubungan: "Orang Tua", daruratHp: "+6285398819046"},
+            {nama: "Fahri Alwi", npm: "02042611221", kelas: "D", wa: "081389055130", tempatTinggal: "Rumah Sendiri", alamat: "Toboleu", daruratNama: "mama", daruratHubungan: "Orang Tua", daruratHp: "081263464881"},
+            {nama: "Keisya Amallia Albaar", npm: "02042611133", kelas: "D", wa: "081315200158", tempatTinggal: "Kontrakan", alamat: "fitu Ternate selatan", daruratNama: "Nela Yusuf", daruratHubungan: "Orang Tua", daruratHp: "081242709608"},
+            {nama: "Beatrice Antjely Janubi", npm: "02042611107", kelas: "C", wa: "082274655673", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Simon Petrus Janubi", daruratHubungan: "Orang Tua", daruratHp: "082299923056"},
+            {nama: "Raisa Kamila Syaifa", npm: "02042611047", kelas: "A", wa: "081245665868", tempatTinggal: "Rumah Sendiri", alamat: "Toboko", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "081245665868"},
+            {nama: "Fakhira Hamaya", npm: "02042611246", kelas: "E", wa: "082260923841", tempatTinggal: "Kost", alamat: "Gambesi jln pramuka", daruratNama: "Nikra seba", daruratHubungan: "Orang Tua", daruratHp: "+62 823-5519-6689"},
+            {nama: "Faujan M Toduho", npm: "02042611141", kelas: "D", wa: "081344814852", tempatTinggal: "Kost", alamat: "ngade", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "081342425280"},
+            {nama: "Jihadia Arfin", npm: "02042611181", kelas: "B", wa: "082313626667", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Nurhalisa", daruratHubungan: "Adik", daruratHp: "081256162383"},
+            {nama: "Nurul Ilma Irwan", npm: "02042611078", kelas: "E", wa: "081545430576", tempatTinggal: "Kost", alamat: "Kelurahan gambesi", daruratNama: "Ayah", daruratHubungan: "Orang Tua", daruratHp: "081355729173"},
+            {nama: "Gamar M.Nur S.Karim", npm: "02042611095", kelas: "B", wa: "08138158573", tempatTinggal: "Rumah Sendiri", alamat: "Tanah Tinggi", daruratNama: "Muhammad Nur Karim", daruratHubungan: "Orang Tua", daruratHp: "0853 85153061"},
+            {nama: "Wir zahra mukadar", npm: "02042611264", kelas: "F", wa: "082291967587", tempatTinggal: "Rumah Sendiri", alamat: "Kasturian", daruratNama: "Yuliyanti", daruratHubungan: "Kakak", daruratHp: "085255200010"},
+            {nama: "Fitriany A. Lutfi", npm: "02042611013", kelas: "A", wa: "082291385731", tempatTinggal: "Rumah Sendiri", alamat: "Kel. Moya Ternate Tengah", daruratNama: "Fahrul", daruratHubungan: "Kakak", daruratHp: "+62 852-8357-6577"},
+            {nama: "Jahira dabi-dabi", npm: "02042611145", kelas: "D", wa: "081324049207", tempatTinggal: "Ikut Kerabat", alamat: "loto, Ternate Barat", daruratNama: "Orang Tua / Kerabat", daruratHubungan: "Orang Tua", daruratHp: "081324049207"},
+            {nama: "NUR THALITA HIDAYAT", npm: "02042611269", kelas: "F", wa: "081247968776", tempatTinggal: "Rumah Sendiri", alamat: "Jl. Daniel Bohang", daruratNama: "papa", daruratHubungan: "Orang Tua", daruratHp: "+62 812-4425-1800"},
+            {nama: "Adiraja B Mahmud", npm: "20261000728", kelas: "C", wa: "08134990411", tempatTinggal: "Kost", alamat: "sasa", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "08134990411"},
+            {nama: "Muznah Aliifah Assagaf", npm: "02042611131", kelas: "D", wa: "085343619892", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Hasyim Alhaddad", daruratHubungan: "Orang Tua", daruratHp: "08134068589"},
+            {nama: "Zulaikha Azzahra Sriudin", npm: "02042611006", kelas: "B", wa: "082196452871", tempatTinggal: "Rumah Sendiri", alamat: "Kel. Jati Perumnas", daruratNama: "Halil Sriudin", daruratHubungan: "Orang Tua", daruratHp: "082349255960"},
+            {nama: "Anjelita Claudia Wugaje", npm: "0081517448", kelas: "C", wa: "08214929508", tempatTinggal: "Kontrakan", alamat: "Kelurahan Sasa", daruratNama: "Kakak", daruratHubungan: "Kakak", daruratHp: "08214929508"},
+            {nama: "Putri Tiara Abd Gani HK", npm: "02042611231", kelas: "D", wa: "085342969753", tempatTinggal: "Rumah Sendiri", alamat: "MALIARO", daruratNama: "Orang Tua", daruratHubungan: "Orang Tua", daruratHp: "08212168226"},
+            {nama: "Nurul Sri Arifa Umamit", npm: "02042611066", kelas: "D", wa: "085283010997", tempatTinggal: "Kost", alamat: "Gambesi", daruratNama: "Jufri Umamit", daruratHubungan: "Orang Tua", daruratHp: "081241058252"}
+        ];
+
+        // Format HP to clean WhatsApp URL
+        function cleanPhone(phone) {
+            if(!phone) return '';
+            let cleaned = phone.replace(/[^0-9]/g, '');
+            if (cleaned.startsWith('0')) {
+                cleaned = '62' + cleaned.substring(1);
+            }
+            return cleaned;
+        }
+
+        // Login Logic
+        function handleLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('passwordInput').value;
+            if (pass === 'manajemen2026') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                showApp();
+            } else {
+                document.getElementById('errorMessage').classList.remove('hidden');
+            }
+        }
+
+        function showApp() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('appContent').classList.remove('hidden');
+            renderCards(rawMahasiswa);
+        }
+
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            location.reload();
+        }
+
+        // Check Session
+        if (sessionStorage.getItem('isLoggedIn') === 'true') {
+            showApp();
+        }
+
+        // Filter Functionality
+        function filterData() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const selectedClass = document.getElementById('classFilter').value;
+
+            const filtered = rawMahasiswa.filter(item => {
+                const matchSearch = item.nama.toLowerCase().includes(query) || item.npm.includes(query);
+                const matchClass = selectedClass === "" || item.kelas === selectedClass;
+                return matchSearch && matchClass;
+            });
+
+            renderCards(filtered);
+        }
+
+        // Render Student Cards
+        function renderCards(data) {
+            const container = document.getElementById('cardsGrid');
+            document.getElementById('countDisplay').innerText = data.length;
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
+                        <p>Data mahasiswa tidak ditemukan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.map(item => {
+                const cleanWa = cleanPhone(item.wa);
+                const cleanEmergency = cleanPhone(item.daruratHp);
+
+                return `
+                <div class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md border border-slate-200/80 transition flex flex-col justify-between">
+                    <div>
+                        <!-- Top Header Card -->
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
+                                    Kelas ${item.kelas}
+                                </span>
+                                <h3 class="font-bold text-slate-800 text-lg mt-2 leading-snug">${item.nama}</h3>
+                                <p class="text-xs text-slate-400 font-mono mt-0.5">${item.npm}</p>
+                            </div>
+                            <span class="text-[11px] px-2 py-1 rounded-full ${item.tempatTinggal.includes('Kost') ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
+                                ${item.tempatTinggal}
+                            </span>
+                        </div>
+
+                        <!-- Address & Personal info -->
+                        <div class="space-y-1.5 text-xs text-slate-600 mb-4">
+                            <div class="flex items-start gap-2">
+                                <i class="fa-solid fa-location-dot mt-0.5 text-slate-400 w-4"></i>
+                                <span class="line-clamp-2">${item.alamat}</span>
+                            </div>
+                        </div>
+
+                        <!-- EMERGENCY CONTACT BOX -->
+                        <div class="bg-red-50/70 border border-red-100 rounded-xl p-3 mb-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Kontak Darurat
+                                </span>
+                                <span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
+                                    ${item.daruratHubungan}
+                                </span>
+                            </div>
+                            <p class="text-xs font-semibold text-slate-800">${item.daruratNama}</p>
+                            <p class="text-xs text-slate-500 font-mono">${item.daruratHp}</p>
+                        </div>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                        <a href="https://wa.me/${cleanWa}" target="_blank" 
+                            class="flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> WA Mhs
+                        </a>
+                        <a href="https://wa.me/${cleanEmergency}" target="_blank" 
+                            class="flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">
+                            <i class="fa-solid fa-phone text-xs"></i> WA Darurat
+                        </a>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html> 
